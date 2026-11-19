@@ -13,6 +13,54 @@ interface SpinWheelProps {
   onComplete: (winningMap: MapItem) => void;
 }
 
+/**
+ * Calculates the exact target rotation angle so that `winningIndex` lands
+ * precisely centered under the needle at the top (270° in SVG coordinates).
+ */
+export function calculateTargetRotation(
+  currentRotation: number,
+  winningIndex: number,
+  numSegments: number = 7,
+  minSpins: number = 6
+): number {
+  const segmentAngle = 360 / numSegments;
+  // Center angle of the slice in initial unrotated SVG space
+  const sliceCenter = (winningIndex + 0.5) * segmentAngle;
+
+  // Pointer needle is located at 12 o'clock (TOP), which is 270° in SVG coordinate space
+  // (0° = 3 o'clock, 90° = 6 o'clock, 180° = 9 o'clock, 270° = 12 o'clock)
+  const needleAngle = 270;
+
+  // We want: (sliceCenter + finalRotation) % 360 === needleAngle
+  // Therefore: finalRotation % 360 === (needleAngle - sliceCenter) % 360
+  const targetRemainder = ((needleAngle - sliceCenter) % 360 + 360) % 360;
+
+  // Current rotation modulo 360
+  const currentNormalized = ((currentRotation % 360) + 360) % 360;
+
+  // Forward degrees needed to reach targetRemainder
+  let delta = targetRemainder - currentNormalized;
+  if (delta <= 0) {
+    delta += 360;
+  }
+
+  // Slight organic jitter within the slice bounds (+- 25% of slice width) to look natural without crossing borders
+  const maxJitter = segmentAngle * 0.25;
+  const jitter = (Math.random() - 0.5) * 2 * maxJitter;
+
+  return currentRotation + delta + minSpins * 360 + jitter;
+}
+
+/**
+ * Returns which slice index is currently under the top needle given a rotation angle.
+ */
+export function getMapIndexAtPointer(rotation: number, numSegments: number = 7): number {
+  const segmentAngle = 360 / numSegments;
+  const needleAngle = 270;
+  const initialAngle = ((needleAngle - (rotation % 360)) % 360 + 360) % 360;
+  return Math.floor(initialAngle / segmentAngle) % numSegments;
+}
+
 export const SpinWheel: React.FC<SpinWheelProps> = ({
   teamAName,
   teamBName,
@@ -49,16 +97,13 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
     const winningIndex = getRandomInt(0, numSegments - 1);
     const winningMap = MAP_POOL[winningIndex];
 
-    // Pointer is located at TOP (270 degrees in standard math or 0 degrees top in SVG)
-    // To land winningIndex under the top pointer (angle = 0):
-    // Slice center angle = (winningIndex + 0.5) * segmentAngle
-    // Rotation = TotalSpins * 360 + (360 - Slice center angle)
     const extraSpins = 6 + Math.floor(Math.random() * 3); // 6 to 8 full revolutions
-    const sliceCenter = (winningIndex + 0.5) * segmentAngle;
-    const targetAngle =
-      currentRotationRef.current +
-      extraSpins * 360 +
-      ((360 - (sliceCenter % 360) + (Math.random() * (segmentAngle * 0.6) - segmentAngle * 0.3)) % 360);
+    const targetAngle = calculateTargetRotation(
+      currentRotationRef.current,
+      winningIndex,
+      numSegments,
+      extraSpins
+    );
 
     const startAngle = currentRotationRef.current;
     const duration = 4800; // ms
@@ -76,8 +121,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
       setCurrentRotation(angle);
 
       // Tick sound calculation
-      const normalizedAngle = (angle % 360 + 360) % 360;
-      const currentSegment = Math.floor(normalizedAngle / segmentAngle);
+      const currentSegment = getMapIndexAtPointer(angle, numSegments);
       if (currentSegment !== lastTickSegmentRef.current) {
         playWheelTick();
         lastTickSegmentRef.current = currentSegment;
@@ -126,7 +170,7 @@ export const SpinWheel: React.FC<SpinWheelProps> = ({
 
       {/* Wheel Stage Container */}
       <div className="relative w-80 h-80 sm:w-96 sm:h-96 my-4 flex items-center justify-center">
-        {/* Top Pointer Needle */}
+        {/* Top Pointer Needle pointing DOWN at 12 o'clock */}
         <div className="absolute -top-3 z-30 flex flex-col items-center pointer-events-none">
           <div className="w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[24px] border-t-val-red drop-shadow-[0_2px_8px_rgba(255,70,85,0.8)]" />
           <div className="w-2.5 h-2.5 bg-val-white rounded-full -mt-5" />

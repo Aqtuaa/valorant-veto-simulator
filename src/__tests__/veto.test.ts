@@ -59,6 +59,21 @@ describe('Randomness Utilities', () => {
     const coin = flipCoin();
     expect(['A', 'B']).toContain(coin);
   });
+
+  it('guarantees spin wheel rotation precisely lands on the chosen map for all 7 maps', async () => {
+    const { calculateTargetRotation, getMapIndexAtPointer } = await import(
+      '../components/wheel/SpinWheel'
+    );
+
+    for (let targetIndex = 0; targetIndex < 7; targetIndex++) {
+      // Test multiple runs including when starting from different prior angles
+      for (let priorAngle = 0; priorAngle < 3600; priorAngle += 513) {
+        const targetRotation = calculateTargetRotation(priorAngle, targetIndex, 7, 6);
+        const actualIndexAtPointer = getMapIndexAtPointer(targetRotation, 7);
+        expect(actualIndexAtPointer).toBe(targetIndex);
+      }
+    }
+  });
 });
 
 describe('Summary Formatter', () => {
