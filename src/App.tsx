@@ -19,6 +19,7 @@ export const App: React.FC = () => {
     startVeto,
     handleCoinFlipComplete,
     requestMapAction,
+    setChosenSide,
     confirmPendingAction,
     cancelPendingAction,
     undoLastAction,
@@ -60,6 +61,7 @@ export const App: React.FC = () => {
             playedMaps={playedMaps}
             pendingAction={pendingAction}
             onRequestMapAction={requestMapAction}
+            onSetChosenSide={setChosenSide}
             onConfirmAction={confirmPendingAction}
             onCancelAction={cancelPendingAction}
             onUndo={undoLastAction}

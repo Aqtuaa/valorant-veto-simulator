@@ -3,23 +3,28 @@ import {
   MapId,
   MapItem,
   TeamActor,
+  StartingSide,
   MapVetoState,
   VetoHistoryEntry,
   ScreenState,
   VetoConfig,
   PlayedMapOrder,
+  SideChoiceInfo,
 } from '../types/veto';
 import { MAP_POOL } from '../config/maps';
-import { VETO_SEQUENCES } from '../config/vetoSequences';
+import { VETO_SEQUENCES, DECIDER_SIDE_CHOOSER } from '../config/vetoSequences';
 import { playBanSound, playPickSound, playDeciderSound } from '../utils/sound';
 
 export interface PendingAction {
   mapId: MapId;
   mapName: string;
-  action: 'ban' | 'pick';
+  action: 'ban' | 'pick' | 'decider';
   actor: TeamActor;
   teamName: string;
   stepNumber: number;
+  sideChooserActor?: TeamActor;
+  sideChooserTeamName?: string;
+  chosenSide: StartingSide;
 }
 
 export function useVeto() {
@@ -46,7 +51,7 @@ export function useVeto() {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [playedMaps, setPlayedMaps] = useState<PlayedMapOrder[]>([]);
 
-  // Helper to resolve which team corresponds to actor 'A' or 'B' in sequence
+  // Helper to resolve which team name corresponds to actor 'A' or 'B'
   const getTeamName = useCallback(
     (actor: TeamActor): string => {
       if (config.firstActor === 'A') {
@@ -68,9 +73,12 @@ export function useVeto() {
   const currentStep = useMemo(() => {
     if (currentStepIndex < activeSequence.length) {
       const step = activeSequence[currentStepIndex];
+      const sideChooserActor = step.sideChooser;
       return {
         ...step,
         teamName: getTeamName(step.actor),
+        sideChooserActor,
+        sideChooserTeamName: sideChooserActor ? getTeamName(sideChooserActor) : undefined,
         stepNumber: currentStepIndex + 1,
         totalSteps: activeSequence.length + 1, // +1 for the automatic decider
       };
@@ -91,7 +99,6 @@ export function useVeto() {
    */
   const startVeto = useCallback((newConfig: VetoConfig) => {
     setConfig(newConfig);
-    // Reset all map states
     const resetStates: Record<string, MapVetoState> = {};
     MAP_POOL.forEach((m) => {
       resetStates[m.id] = { status: 'available' };
@@ -112,7 +119,7 @@ export function useVeto() {
   }, []);
 
   /**
-   * Set the coin flip result and proceed to veto
+   * Set coin flip result and proceed to veto
    */
   const handleCoinFlipComplete = useCallback((winner: TeamActor) => {
     setConfig((prev) => ({ ...prev, firstActor: winner }));
@@ -137,10 +144,20 @@ export function useVeto() {
         actor: currentStep.actor,
         teamName: currentStep.teamName,
         stepNumber: currentStep.stepNumber,
+        sideChooserActor: currentStep.sideChooserActor,
+        sideChooserTeamName: currentStep.sideChooserTeamName,
+        chosenSide: 'Attack', // Default selection
       });
     },
     [mapStates, currentStep]
   );
+
+  /**
+   * Change chosen starting side in pending confirmation
+   */
+  const setChosenSide = useCallback((side: StartingSide) => {
+    setPendingAction((prev) => (prev ? { ...prev, chosenSide: side } : null));
+  }, []);
 
   /**
    * Cancel pending action
@@ -150,16 +167,73 @@ export function useVeto() {
   }, []);
 
   /**
-   * Confirm and execute the pending map ban/pick
+   * Confirm and execute the pending map ban/pick/decider
    */
   const confirmPendingAction = useCallback(() => {
-    if (!pendingAction || !currentStep) return;
+    if (!pendingAction) return;
 
-    const { mapId, mapName, action, actor, teamName } = pendingAction;
+    const { mapId, mapName, action, actor, teamName, chosenSide, sideChooserActor, sideChooserTeamName } =
+      pendingAction;
     const mapItem = MAP_POOL.find((m) => m.id === mapId);
     if (!mapItem) return;
 
-    // Play feedback sound
+    // Handle DECIDER confirmation
+    if (action === 'decider') {
+      playDeciderSound();
+
+      const opponentSide: StartingSide = chosenSide === 'Attack' ? 'Defense' : 'Attack';
+      const sideChoice: SideChoiceInfo = {
+        chooserActor: sideChooserActor || DECIDER_SIDE_CHOOSER,
+        chooserTeamName: sideChooserTeamName || getTeamName(DECIDER_SIDE_CHOOSER),
+        chosenSide,
+        opponentTeamName: getTeamName(DECIDER_SIDE_CHOOSER === 'A' ? 'B' : 'A'),
+        opponentSide,
+      };
+
+      const updatedMapStates: Record<string, MapVetoState> = {
+        ...mapStates,
+        [mapId]: {
+          status: 'decider',
+          stepNumber: currentStepIndex + 1,
+          timestamp: Date.now(),
+          sideChoice,
+        },
+      };
+
+      const newHistoryEntry: VetoHistoryEntry = {
+        stepIndex: currentStepIndex,
+        actor: DECIDER_SIDE_CHOOSER,
+        action: 'decider',
+        teamName: 'Decider',
+        mapId,
+        mapName,
+        sideChoice,
+      };
+
+      const updatedHistory = [...history, newHistoryEntry];
+      const updatedPlayedMaps = [
+        ...playedMaps,
+        {
+          gameNumber: playedMaps.length + 1,
+          map: mapItem,
+          type: 'decider' as const,
+          sideChoice,
+        },
+      ];
+
+      setMapStates(updatedMapStates);
+      setHistory(updatedHistory);
+      setPlayedMaps(updatedPlayedMaps);
+      setCurrentStepIndex(currentStepIndex + 1);
+      setPendingAction(null);
+
+      setTimeout(() => {
+        setScreen('result');
+      }, 700);
+      return;
+    }
+
+    // Handle BAN or PICK
     if (action === 'ban') {
       playBanSound();
     } else {
@@ -168,7 +242,19 @@ export function useVeto() {
 
     const nextStepIndex = currentStepIndex + 1;
 
-    // Update map status
+    // Construct SideChoiceInfo for picks
+    let sideChoice: SideChoiceInfo | undefined;
+    if (action === 'pick' && sideChooserActor && sideChooserTeamName) {
+      const opponentSide: StartingSide = chosenSide === 'Attack' ? 'Defense' : 'Attack';
+      sideChoice = {
+        chooserActor: sideChooserActor,
+        chooserTeamName: sideChooserTeamName,
+        chosenSide,
+        opponentTeamName: teamName,
+        opponentSide,
+      };
+    }
+
     const updatedMapStates: Record<string, MapVetoState> = {
       ...mapStates,
       [mapId]: {
@@ -177,6 +263,7 @@ export function useVeto() {
         teamName,
         stepNumber: nextStepIndex,
         timestamp: Date.now(),
+        sideChoice,
       },
     };
 
@@ -187,10 +274,10 @@ export function useVeto() {
       teamName,
       mapId,
       mapName,
+      sideChoice,
     };
     const updatedHistory = [...history, newHistoryEntry];
 
-    // If it was a pick, record in played maps order
     let updatedPlayedMaps = [...playedMaps];
     if (action === 'pick') {
       updatedPlayedMaps.push({
@@ -199,6 +286,7 @@ export function useVeto() {
         type: 'pick',
         teamName,
         actor,
+        sideChoice,
       });
     }
 
@@ -206,59 +294,49 @@ export function useVeto() {
     const availableMaps = MAP_POOL.filter((m) => updatedMapStates[m.id]?.status === 'available');
 
     if (availableMaps.length === 1) {
-      // Automatic Decider!
       const deciderMap = availableMaps[0];
-      updatedMapStates[deciderMap.id] = {
-        status: 'decider',
-        stepNumber: nextStepIndex + 1,
-        timestamp: Date.now(),
-      };
+      const deciderSideChooser = DECIDER_SIDE_CHOOSER;
+      const deciderSideChooserTeam = getTeamName(deciderSideChooser);
 
-      updatedHistory.push({
-        stepIndex: nextStepIndex,
-        actor: 'A', // N/A
-        action: 'decider',
-        teamName: 'Decider',
-        mapId: deciderMap.id,
-        mapName: deciderMap.name,
-      });
-
-      updatedPlayedMaps.push({
-        gameNumber: updatedPlayedMaps.length + 1,
-        map: deciderMap,
-        type: 'decider',
-      });
-
-      playDeciderSound();
-
+      // Prompt side selection for the decider map!
       setMapStates(updatedMapStates);
       setHistory(updatedHistory);
       setPlayedMaps(updatedPlayedMaps);
       setCurrentStepIndex(nextStepIndex);
-      setPendingAction(null);
 
-      // Transition to result screen
-      setTimeout(() => {
-        setScreen('result');
-      }, 900);
+      setPendingAction({
+        mapId: deciderMap.id,
+        mapName: deciderMap.name,
+        action: 'decider',
+        actor: deciderSideChooser,
+        teamName: 'Decider',
+        stepNumber: nextStepIndex + 1,
+        sideChooserActor: deciderSideChooser,
+        sideChooserTeamName: deciderSideChooserTeam,
+        chosenSide: 'Attack',
+      });
       return;
     }
 
-    // Otherwise continue to next step
     setMapStates(updatedMapStates);
     setHistory(updatedHistory);
     setPlayedMaps(updatedPlayedMaps);
     setCurrentStepIndex(nextStepIndex);
     setPendingAction(null);
-  }, [pendingAction, currentStep, currentStepIndex, mapStates, history, playedMaps]);
+  }, [pendingAction, currentStepIndex, mapStates, history, playedMaps, getTeamName]);
 
   /**
    * Undo the last action taken
    */
   const undoLastAction = useCallback(() => {
+    // If pending action is open for decider, close it and revert step
+    if (pendingAction && pendingAction.action === 'decider') {
+      setPendingAction(null);
+    }
+
     if (history.length === 0) return;
 
-    // If the last history item was an automatic decider, we pop both the decider and the action before it
+    // Check if last history item was decider
     const lastItem = history[history.length - 1];
     let itemsToPop = 1;
     if (lastItem.action === 'decider' && history.length >= 2) {
@@ -268,19 +346,16 @@ export function useVeto() {
     const poppedHistory = history.slice(0, history.length - itemsToPop);
     const affectedItems = history.slice(history.length - itemsToPop);
 
-    // Revert map states of affected items to 'available'
     const newMapStates = { ...mapStates };
     affectedItems.forEach((entry) => {
       newMapStates[entry.mapId] = { status: 'available' };
     });
 
-    // Reconstruct playedMaps
     const affectedMapIds = new Set(affectedItems.map((e) => e.mapId));
     const newPlayedMaps = playedMaps
       .filter((p) => !affectedMapIds.has(p.map.id))
       .map((p, idx) => ({ ...p, gameNumber: idx + 1 }));
 
-    // Revert step index to the stepIndex of the earliest popped item
     const earliestStepIndex = affectedItems[0].stepIndex;
 
     setMapStates(newMapStates);
@@ -289,18 +364,29 @@ export function useVeto() {
     setCurrentStepIndex(earliestStepIndex);
     setPendingAction(null);
     setScreen('veto');
-  }, [history, mapStates, playedMaps]);
+  }, [pendingAction, history, mapStates, playedMaps]);
 
   /**
    * Handle Bo1 spin wheel resolution
    */
   const handleWheelResult = useCallback(
     (winningMap: MapItem) => {
-      // Mark selected map as decider/winner
+      const deciderSideChooser = DECIDER_SIDE_CHOOSER;
+      const deciderSideChooserTeam = getTeamName(deciderSideChooser);
+      const opponentTeam = getTeamName(deciderSideChooser === 'A' ? 'B' : 'A');
+
+      const sideChoice: SideChoiceInfo = {
+        chooserActor: deciderSideChooser,
+        chooserTeamName: deciderSideChooserTeam,
+        chosenSide: 'Attack',
+        opponentTeamName: opponentTeam,
+        opponentSide: 'Defense',
+      };
+
       const updatedMapStates: Record<string, MapVetoState> = {};
       MAP_POOL.forEach((m) => {
         if (m.id === winningMap.id) {
-          updatedMapStates[m.id] = { status: 'decider', stepNumber: 1, timestamp: Date.now() };
+          updatedMapStates[m.id] = { status: 'decider', stepNumber: 1, timestamp: Date.now(), sideChoice };
         } else {
           updatedMapStates[m.id] = { status: 'banned', stepNumber: 1, timestamp: Date.now() };
         }
@@ -312,6 +398,7 @@ export function useVeto() {
           gameNumber: 1,
           map: winningMap,
           type: 'decider',
+          sideChoice,
         },
       ]);
       setHistory([
@@ -322,6 +409,7 @@ export function useVeto() {
           teamName: 'Random Wheel Selection',
           mapId: winningMap.id,
           mapName: winningMap.name,
+          sideChoice,
         },
       ]);
 
@@ -329,11 +417,11 @@ export function useVeto() {
         setScreen('result');
       }, 1200);
     },
-    []
+    [getTeamName]
   );
 
   /**
-   * Reset everything and return to Setup screen
+   * Reset everything to initial setup
    */
   const resetVeto = useCallback(() => {
     const initial: Record<string, MapVetoState> = {};
@@ -362,6 +450,7 @@ export function useVeto() {
     startVeto,
     handleCoinFlipComplete,
     requestMapAction,
+    setChosenSide,
     confirmPendingAction,
     cancelPendingAction,
     undoLastAction,

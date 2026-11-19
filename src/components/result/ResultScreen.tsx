@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Copy, Check, RotateCcw, Ban, Sparkles } from 'lucide-react';
+import { Trophy, Copy, Check, RotateCcw, Ban, Sparkles, Swords, Shield } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
   VetoConfig,
@@ -29,7 +29,6 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  // Trigger celebratory confetti on mount
   useEffect(() => {
     try {
       confetti({
@@ -50,7 +49,6 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      // Fallback for older browsers
       const textarea = document.createElement('textarea');
       textarea.value = summary;
       document.body.appendChild(textarea);
@@ -62,7 +60,6 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
     }
   };
 
-  // Find banned maps
   const bannedMaps = MAP_POOL.filter((m) => mapStates[m.id]?.status === 'banned');
 
   return (
@@ -86,73 +83,132 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         <div className="flex items-center justify-between mb-4 border-b border-val-border/60 pb-2">
           <span className="text-xs font-mono tracking-widest uppercase text-val-white font-bold flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-val-cyan" />
-            SCHEDULED MAP ORDER
+            SCHEDULED MAP ORDER & STARTING SIDES
           </span>
           <span className="text-xs font-mono tracking-wider text-val-muted uppercase">
             {playedMaps.length} MAPS
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {playedMaps.map((item, index) => {
             const isDecider = item.type === 'decider';
+            const side = item.sideChoice;
+
             return (
               <motion.div
                 key={item.map.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`relative overflow-hidden clip-val-card border-2 p-5 flex flex-col justify-between min-h-[160px] shadow-xl ${
+                className={`relative overflow-hidden clip-val-card border-2 flex flex-col justify-between min-h-[260px] shadow-2xl ${
                   isDecider
-                    ? 'bg-gradient-to-br from-amber-950/40 via-val-surface to-val-dark border-val-gold shadow-val-gold'
-                    : 'bg-gradient-to-br from-teal-950/40 via-val-surface to-val-dark border-val-cyan shadow-val-cyan'
+                    ? 'border-val-gold shadow-val-gold'
+                    : 'border-val-cyan shadow-val-cyan'
                 }`}
               >
-                {/* Top Badge */}
-                <div className="flex items-center justify-between mb-4">
-                  <span
-                    className={`font-tactical font-black text-xs uppercase px-2.5 py-0.5 clip-val-tag tracking-wider ${
-                      isDecider
-                        ? 'bg-val-gold text-val-black'
-                        : 'bg-val-cyan text-val-black'
-                    }`}
-                  >
-                    MAP {item.gameNumber}
-                  </span>
-                  <span
-                    className={`text-[10px] font-mono tracking-wider uppercase font-semibold ${
-                      isDecider ? 'text-val-gold' : 'text-val-cyan'
-                    }`}
-                  >
-                    {isDecider ? 'DECIDER MAP' : `PICKED BY ${item.teamName}`}
-                  </span>
-                </div>
+                {/* Background Map Image with Vignette Filter */}
+                {item.map.imageUrl ? (
+                  <div className="absolute inset-0 z-0">
+                    <img
+                      src={item.map.imageUrl}
+                      alt={item.map.name}
+                      className="w-full h-full object-cover brightness-[0.75] contrast-125 saturate-110"
+                    />
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-t ${
+                        isDecider
+                          ? 'from-val-black via-val-black/80 to-amber-950/40'
+                          : 'from-val-black via-val-black/80 to-teal-950/40'
+                      }`}
+                    />
+                  </div>
+                ) : (
+                  <div className={`absolute inset-0 z-0 bg-gradient-to-br ${item.map.theme.bgGradient}`} />
+                )}
 
-                {/* Map Name & Location */}
-                <div>
-                  <h3 className="font-display font-extrabold text-3xl uppercase tracking-wider text-val-white">
-                    {item.map.name}
-                  </h3>
-                  {item.map.location && (
-                    <p className="text-xs font-mono text-val-muted uppercase mt-0.5">
-                      {item.map.location}
-                    </p>
+                {/* Content Overlay */}
+                <div className="relative z-10 p-5 flex flex-col justify-between h-full">
+                  {/* Top Badge */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span
+                      className={`font-tactical font-black text-xs uppercase px-2.5 py-0.5 clip-val-tag tracking-wider shadow-md ${
+                        isDecider
+                          ? 'bg-val-gold text-val-black'
+                          : 'bg-val-cyan text-val-black'
+                      }`}
+                    >
+                      MAP {item.gameNumber}
+                    </span>
+                    <span
+                      className={`text-[11px] font-mono tracking-wider uppercase font-bold px-2 py-0.5 bg-val-black/80 border border-white/10 clip-val-tag ${
+                        isDecider ? 'text-val-gold' : 'text-val-cyan'
+                      }`}
+                    >
+                      {isDecider ? 'DECIDER MAP' : `PICKED BY ${item.teamName}`}
+                    </span>
+                  </div>
+
+                  {/* Center Map Title */}
+                  <div className="my-3">
+                    <h3 className="font-display font-black text-3xl uppercase tracking-wider text-val-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                      {item.map.name}
+                    </h3>
+                    {item.map.location && (
+                      <p className="text-xs font-mono text-val-white/80 uppercase mt-0.5">
+                        {item.map.location}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Starting Sides Breakdown */}
+                  {side && (
+                    <div className="mt-3 pt-3 border-t border-val-border/60 bg-val-black/85 backdrop-blur-sm p-3 clip-val-tag space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="text-val-white font-semibold truncate max-w-[120px]">
+                          {side.chooserTeamName}
+                        </span>
+                        <span
+                          className={`font-bold flex items-center gap-1 uppercase ${
+                            side.chosenSide === 'Attack' ? 'text-val-red' : 'text-val-cyan'
+                          }`}
+                        >
+                          {side.chosenSide === 'Attack' ? (
+                            <Swords className="w-3.5 h-3.5" />
+                          ) : (
+                            <Shield className="w-3.5 h-3.5" />
+                          )}
+                          {side.chosenSide}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="text-val-muted truncate max-w-[120px]">
+                          {side.opponentTeamName}
+                        </span>
+                        <span
+                          className={`font-bold flex items-center gap-1 uppercase ${
+                            side.opponentSide === 'Attack' ? 'text-val-red' : 'text-val-cyan'
+                          }`}
+                        >
+                          {side.opponentSide === 'Attack' ? (
+                            <Swords className="w-3.5 h-3.5" />
+                          ) : (
+                            <Shield className="w-3.5 h-3.5" />
+                          )}
+                          {side.opponentSide}
+                        </span>
+                      </div>
+                    </div>
                   )}
                 </div>
-
-                {/* Corner Accent */}
-                <div
-                  className={`absolute -bottom-6 -right-6 w-16 h-16 rounded-full opacity-15 ${
-                    isDecider ? 'bg-val-gold' : 'bg-val-cyan'
-                  }`}
-                />
               </motion.div>
             );
           })}
         </div>
       </div>
 
-      {/* Banned Maps Summary (Bo3 & Bo5) */}
+      {/* Banned Maps Summary */}
       {bannedMaps.length > 0 && (
         <div className="mb-10 bg-val-surface/70 border border-val-border/60 p-6 clip-val-card">
           <div className="flex items-center gap-2 mb-4 pb-2 border-b border-val-border/40">

@@ -105,29 +105,32 @@ export const MAP_POOL: MapItem[] = [
 ```
 > If `imageUrl` is omitted, the app renders a stylized gradient card with unique tactical vector patterns for that map.
 
-### How to Edit the Veto Sequences
-Veto sequences are defined declaratively as data-driven arrays in:
+### How to Edit the Veto Sequences & Decider Side
+Veto sequences and the decider starting side chooser are defined declaratively in:
 👉 [`src/config/vetoSequences.ts`](file:///src/config/vetoSequences.ts)
 
 ```typescript
+// Tim yang memilih starting side untuk map Decider (default 'A')
+export const DECIDER_SIDE_CHOOSER: TeamActor = 'A';
+
 export const VETO_SEQUENCES = {
   bo3: [
     { actor: 'A', action: 'ban', description: 'Team A Ban' },
     { actor: 'B', action: 'ban', description: 'Team B Ban' },
-    { actor: 'A', action: 'pick', description: 'Team A Pick (Map 1)' },
-    { actor: 'B', action: 'pick', description: 'Team B Pick (Map 2)' },
+    { actor: 'A', action: 'pick', sideChooser: 'B', description: 'Team A Pick, Team B chooses side' },
+    { actor: 'B', action: 'pick', sideChooser: 'A', description: 'Team B Pick, Team A chooses side' },
     { actor: 'A', action: 'ban', description: 'Team A Ban' },
     { actor: 'B', action: 'ban', description: 'Team B Ban' },
-    // When 1 map remains, it automatically becomes the Decider
+    // 7th map becomes Decider, side chosen by DECIDER_SIDE_CHOOSER
   ],
   bo5: [
     { actor: 'A', action: 'ban', description: 'Team A Ban' },
     { actor: 'B', action: 'ban', description: 'Team B Ban' },
-    { actor: 'A', action: 'pick', description: 'Team A Pick (Map 1)' },
-    { actor: 'B', action: 'pick', description: 'Team B Pick (Map 2)' },
-    { actor: 'A', action: 'pick', description: 'Team A Pick (Map 3)' },
-    { actor: 'B', action: 'pick', description: 'Team B Pick (Map 4)' },
-    // When 1 map remains, it automatically becomes the Decider
+    { actor: 'A', action: 'pick', sideChooser: 'B', description: 'Team A Pick, Team B chooses side' },
+    { actor: 'B', action: 'pick', sideChooser: 'A', description: 'Team B Pick, Team A chooses side' },
+    { actor: 'A', action: 'pick', sideChooser: 'B', description: 'Team A Pick, Team B chooses side' },
+    { actor: 'B', action: 'pick', sideChooser: 'A', description: 'Team B Pick, Team A chooses side' },
+    // 7th map becomes Decider, side chosen by DECIDER_SIDE_CHOOSER
   ],
 };
 ```

@@ -5,7 +5,7 @@ export interface MapItem {
   name: string;
   location?: string;
   imageUrl?: string;
-  accentColor: string; // Gradient / border accent
+  accentColor: string;
   secondaryColor: string;
   theme: {
     bgGradient: string;
@@ -18,15 +18,26 @@ export type VetoFormat = 'bo1' | 'bo3' | 'bo5';
 
 export type TeamActor = 'A' | 'B';
 
+export type StartingSide = 'Attack' | 'Defense';
+
 export type VetoActionType = 'ban' | 'pick' | 'decider';
 
 export interface VetoStep {
   actor: TeamActor;
   action: 'ban' | 'pick';
+  sideChooser?: TeamActor;
   description?: string;
 }
 
 export type MapStateStatus = 'available' | 'banned' | 'picked' | 'decider';
+
+export interface SideChoiceInfo {
+  chooserActor: TeamActor;
+  chooserTeamName: string;
+  chosenSide: StartingSide;
+  opponentTeamName: string;
+  opponentSide: StartingSide;
+}
 
 export interface MapVetoState {
   status: MapStateStatus;
@@ -34,6 +45,7 @@ export interface MapVetoState {
   teamName?: string;
   stepNumber?: number;
   timestamp?: number;
+  sideChoice?: SideChoiceInfo;
 }
 
 export interface VetoHistoryEntry {
@@ -43,6 +55,7 @@ export interface VetoHistoryEntry {
   teamName: string;
   mapId: MapId;
   mapName: string;
+  sideChoice?: SideChoiceInfo;
 }
 
 export type ScreenState = 'setup' | 'coinflip' | 'veto' | 'wheel' | 'result';
@@ -61,4 +74,5 @@ export interface PlayedMapOrder {
   type: 'pick' | 'decider';
   teamName?: string;
   actor?: TeamActor;
+  sideChoice?: SideChoiceInfo;
 }

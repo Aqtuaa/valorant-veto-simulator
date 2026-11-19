@@ -1,7 +1,8 @@
 import { PlayedMapOrder, VetoHistoryEntry, VetoConfig } from '../types/veto';
 
 /**
- * Formats veto result into a clean text summary for clipboard copying.
+ * Formats veto result into a clean text summary for clipboard copying,
+ * including map picks, bans, and starting sides (Attack / Defense).
  */
 export function formatVetoSummary(
   config: VetoConfig,
@@ -23,25 +24,40 @@ export function formatVetoSummary(
   summary += `Date: ${dateStr}\n`;
   summary += `${divider}\n\n`;
 
-  summary += `FINAL MAP ORDER:\n`;
+  summary += `FINAL MAP ORDER & SIDES:\n`;
   playedMaps.forEach((item) => {
     if (item.type === 'decider') {
       summary += `Map ${item.gameNumber}: ${item.map.name.toUpperCase()} (Decider)\n`;
     } else {
       summary += `Map ${item.gameNumber}: ${item.map.name.toUpperCase()} (Picked by ${item.teamName})\n`;
     }
+
+    if (item.sideChoice) {
+      const { chooserTeamName, chosenSide, opponentTeamName, opponentSide } = item.sideChoice;
+      summary += `  -> ${chooserTeamName}: ${chosenSide.toUpperCase()} | ${opponentTeamName}: ${opponentSide.toUpperCase()}\n`;
+    }
   });
 
   summary += `\n${subDivider}\nVETO TIMELINE:\n`;
   if (config.format === 'bo1') {
     summary += `1. Random Wheel Selection -> ${playedMaps[0]?.map.name.toUpperCase()}\n`;
+    if (playedMaps[0]?.sideChoice) {
+      summary += `   (${playedMaps[0].sideChoice.chooserTeamName} chose ${playedMaps[0].sideChoice.chosenSide})\n`;
+    }
   } else {
     history.forEach((step, idx) => {
-      const actionUpper = step.action.toUpperCase();
       if (step.action === 'decider') {
         summary += `${idx + 1}. Decider -> ${step.mapName}\n`;
+        if (step.sideChoice) {
+          summary += `   (${step.sideChoice.chooserTeamName} chose ${step.sideChoice.chosenSide})\n`;
+        }
+      } else if (step.action === 'pick') {
+        summary += `${idx + 1}. ${step.teamName} PICK -> ${step.mapName}\n`;
+        if (step.sideChoice) {
+          summary += `   (${step.sideChoice.chooserTeamName} chose ${step.sideChoice.chosenSide})\n`;
+        }
       } else {
-        summary += `${idx + 1}. ${step.teamName} ${actionUpper} -> ${step.mapName}\n`;
+        summary += `${idx + 1}. ${step.teamName} BAN -> ${step.mapName}\n`;
       }
     });
   }

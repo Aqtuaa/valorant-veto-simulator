@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { History, Undo2, Ban, CheckCircle, Crown } from 'lucide-react';
+import { History, Undo2, Ban, CheckCircle, Crown, Swords, Shield } from 'lucide-react';
 import { VetoHistoryEntry } from '../../types/veto';
 import { Button } from '../common/Button';
 
@@ -38,6 +38,7 @@ export const VetoTimeline: React.FC<VetoTimelineProps> = ({ history, onUndo, can
             const isBan = item.action === 'ban';
             const isPick = item.action === 'pick';
             const isDecider = item.action === 'decider';
+            const side = item.sideChoice;
 
             return (
               <motion.div
@@ -52,9 +53,9 @@ export const VetoTimeline: React.FC<VetoTimelineProps> = ({ history, onUndo, can
                     : 'bg-val-dark/70 border-val-gold/30'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs font-mono font-bold text-val-muted w-4 flex-shrink-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <span className="text-xs font-mono font-bold text-val-muted w-4 flex-shrink-0 pt-0.5">
                       {index + 1}.
                     </span>
 
@@ -67,6 +68,25 @@ export const VetoTimeline: React.FC<VetoTimelineProps> = ({ history, onUndo, can
                       <span className="text-[10px] font-mono text-val-muted uppercase block truncate">
                         {isDecider ? 'Automatic Decider' : item.teamName}
                       </span>
+
+                      {/* Starting Side Note */}
+                      {side && (
+                        <div className="mt-1 flex items-center gap-1 text-[10px] font-mono">
+                          <span className="text-val-muted">{side.chooserTeamName}:</span>
+                          <span
+                            className={`font-bold uppercase inline-flex items-center gap-0.5 ${
+                              side.chosenSide === 'Attack' ? 'text-val-red' : 'text-val-cyan'
+                            }`}
+                          >
+                            {side.chosenSide === 'Attack' ? (
+                              <Swords className="w-2.5 h-2.5" />
+                            ) : (
+                              <Shield className="w-2.5 h-2.5" />
+                            )}
+                            {side.chosenSide}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

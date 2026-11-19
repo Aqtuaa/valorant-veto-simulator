@@ -1,31 +1,49 @@
-import { VetoStep, VetoFormat } from '../types/veto';
+import { VetoStep, VetoFormat, TeamActor } from '../types/veto';
+
+/**
+ * Team that chooses starting side on the final Decider map.
+ * Set to 'A' by default as per requirements, but can easily be changed here to 'B'.
+ */
+export const DECIDER_SIDE_CHOOSER: TeamActor = 'A';
 
 /**
  * Data-driven Veto Sequences.
  * 
- * In both Bo3 and Bo5:
- * Team A acts first, followed by Team B alternating according to the defined steps.
- * When exactly 1 map remains, it is automatically marked as the "Decider" map.
+ * Bo3 (7 maps):
+ * 1. A bans
+ * 2. B bans
+ * 3. A picks, B chooses side
+ * 4. B picks, A chooses side
+ * 5. A bans
+ * 6. B bans
+ * 7. Decider (side chosen by DECIDER_SIDE_CHOOSER, default Team A)
  * 
- * For Bo1: The veto is resolved via the custom Spin Wheel.
+ * Bo5 (7 maps):
+ * 1. A bans
+ * 2. B bans
+ * 3. A picks, B chooses side
+ * 4. B picks, A chooses side
+ * 5. A picks, B chooses side
+ * 6. B picks, A chooses side
+ * 7. Decider (side chosen by DECIDER_SIDE_CHOOSER, default Team A)
  */
 export const VETO_SEQUENCES: Record<Exclude<VetoFormat, 'bo1'>, VetoStep[]> = {
   bo3: [
     { actor: 'A', action: 'ban', description: 'Team A Ban' },
     { actor: 'B', action: 'ban', description: 'Team B Ban' },
-    { actor: 'A', action: 'pick', description: 'Team A Pick (Map 1)' },
-    { actor: 'B', action: 'pick', description: 'Team B Pick (Map 2)' },
+    { actor: 'A', action: 'pick', sideChooser: 'B', description: 'Team A Pick (Map 1), Team B chooses side' },
+    { actor: 'B', action: 'pick', sideChooser: 'A', description: 'Team B Pick (Map 2), Team A chooses side' },
     { actor: 'A', action: 'ban', description: 'Team A Ban' },
     { actor: 'B', action: 'ban', description: 'Team B Ban' },
-    // 7th map becomes Decider (Map 3) automatically
+    // 7th map becomes Decider (Map 3), side chosen by DECIDER_SIDE_CHOOSER
   ],
   bo5: [
     { actor: 'A', action: 'ban', description: 'Team A Ban' },
     { actor: 'B', action: 'ban', description: 'Team B Ban' },
-    { actor: 'A', action: 'pick', description: 'Team A Pick (Map 1)' },
-    { actor: 'B', action: 'pick', description: 'Team B Pick (Map 2)' },
-    { actor: 'A', action: 'pick', description: 'Team A Pick (Map 3)' },
-    { actor: 'B', action: 'pick', description: 'Team B Pick (Map 4)' },
-    // 7th map becomes Decider (Map 5) automatically
+    { actor: 'A', action: 'pick', sideChooser: 'B', description: 'Team A Pick (Map 1), Team B chooses side' },
+    { actor: 'B', action: 'pick', sideChooser: 'A', description: 'Team B Pick (Map 2), Team A chooses side' },
+    { actor: 'A', action: 'pick', sideChooser: 'B', description: 'Team A Pick (Map 3), Team B chooses side' },
+    { actor: 'B', action: 'pick', sideChooser: 'A', description: 'Team B Pick (Map 4), Team A chooses side' },
+    // 7th map becomes Decider (Map 5), side chosen by DECIDER_SIDE_CHOOSER
   ],
 };

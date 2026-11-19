@@ -5,6 +5,7 @@ import {
   MapVetoState,
   VetoHistoryEntry,
   PlayedMapOrder,
+  StartingSide,
 } from '../../types/veto';
 import { PendingAction } from '../../hooks/useVeto';
 import { TurnIndicator } from './TurnIndicator';
@@ -19,6 +20,8 @@ interface VetoScreenProps {
     actor: 'A' | 'B';
     action: 'ban' | 'pick';
     teamName: string;
+    sideChooserActor?: 'A' | 'B';
+    sideChooserTeamName?: string;
     stepNumber: number;
     totalSteps: number;
   } | null;
@@ -26,6 +29,7 @@ interface VetoScreenProps {
   playedMaps: PlayedMapOrder[];
   pendingAction: PendingAction | null;
   onRequestMapAction: (mapId: string) => void;
+  onSetChosenSide: (side: StartingSide) => void;
   onConfirmAction: () => void;
   onCancelAction: () => void;
   onUndo: () => void;
@@ -39,11 +43,11 @@ export const VetoScreen: React.FC<VetoScreenProps> = ({
   playedMaps,
   pendingAction,
   onRequestMapAction,
+  onSetChosenSide,
   onConfirmAction,
   onCancelAction,
   onUndo,
 }) => {
-  // Helper to determine map game number if it was picked or decider
   const getGameNumber = (mapId: string) => {
     const played = playedMaps.find((p) => p.map.id === mapId);
     return played ? played.gameNumber : undefined;
@@ -85,7 +89,7 @@ export const VetoScreen: React.FC<VetoScreenProps> = ({
                 currentTeamName={currentStep?.teamName}
                 gameNumber={getGameNumber(map.id)}
                 onClick={() => onRequestMapAction(map.id)}
-                disabled={!currentStep}
+                disabled={!currentStep && pendingAction?.action !== 'decider'}
               />
             ))}
           </div>
@@ -101,9 +105,10 @@ export const VetoScreen: React.FC<VetoScreenProps> = ({
         </div>
       </div>
 
-      {/* Confirmation Modal to prevent misclicks */}
+      {/* Confirmation Modal to prevent misclicks & select starting sides */}
       <ConfirmActionModal
         pendingAction={pendingAction}
+        onSetChosenSide={onSetChosenSide}
         onConfirm={onConfirmAction}
         onCancel={onCancelAction}
       />

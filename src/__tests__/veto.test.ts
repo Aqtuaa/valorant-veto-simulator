@@ -23,26 +23,26 @@ describe('Map Pool Configuration', () => {
 });
 
 describe('Veto Sequences', () => {
-  it('Bo3 sequence follows 2 bans, 2 picks, 2 bans', () => {
+  it('Bo3 sequence follows 2 bans, 2 picks with sideChooser, 2 bans', () => {
     const bo3 = VETO_SEQUENCES.bo3;
     expect(bo3).toHaveLength(6);
     expect(bo3[0]).toEqual({ actor: 'A', action: 'ban', description: 'Team A Ban' });
     expect(bo3[1]).toEqual({ actor: 'B', action: 'ban', description: 'Team B Ban' });
-    expect(bo3[2]).toEqual({ actor: 'A', action: 'pick', description: 'Team A Pick (Map 1)' });
-    expect(bo3[3]).toEqual({ actor: 'B', action: 'pick', description: 'Team B Pick (Map 2)' });
+    expect(bo3[2]).toEqual({ actor: 'A', action: 'pick', sideChooser: 'B', description: 'Team A Pick (Map 1), Team B chooses side' });
+    expect(bo3[3]).toEqual({ actor: 'B', action: 'pick', sideChooser: 'A', description: 'Team B Pick (Map 2), Team A chooses side' });
     expect(bo3[4]).toEqual({ actor: 'A', action: 'ban', description: 'Team A Ban' });
     expect(bo3[5]).toEqual({ actor: 'B', action: 'ban', description: 'Team B Ban' });
   });
 
-  it('Bo5 sequence follows 2 bans, 4 picks', () => {
+  it('Bo5 sequence follows 2 bans, 4 picks with sideChooser', () => {
     const bo5 = VETO_SEQUENCES.bo5;
     expect(bo5).toHaveLength(6);
     expect(bo5[0]).toEqual({ actor: 'A', action: 'ban', description: 'Team A Ban' });
     expect(bo5[1]).toEqual({ actor: 'B', action: 'ban', description: 'Team B Ban' });
-    expect(bo5[2]).toEqual({ actor: 'A', action: 'pick', description: 'Team A Pick (Map 1)' });
-    expect(bo5[3]).toEqual({ actor: 'B', action: 'pick', description: 'Team B Pick (Map 2)' });
-    expect(bo5[4]).toEqual({ actor: 'A', action: 'pick', description: 'Team A Pick (Map 3)' });
-    expect(bo5[5]).toEqual({ actor: 'B', action: 'pick', description: 'Team B Pick (Map 4)' });
+    expect(bo5[2]).toEqual({ actor: 'A', action: 'pick', sideChooser: 'B', description: 'Team A Pick (Map 1), Team B chooses side' });
+    expect(bo5[3]).toEqual({ actor: 'B', action: 'pick', sideChooser: 'A', description: 'Team B Pick (Map 2), Team A chooses side' });
+    expect(bo5[4]).toEqual({ actor: 'A', action: 'pick', sideChooser: 'B', description: 'Team A Pick (Map 3), Team B chooses side' });
+    expect(bo5[5]).toEqual({ actor: 'B', action: 'pick', sideChooser: 'A', description: 'Team B Pick (Map 4), Team A chooses side' });
   });
 });
 
